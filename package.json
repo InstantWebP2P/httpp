@@ -1,0 +1,17 @@
+{
+  "author": "Tom Zhou",
+  "name": "httpp",
+  "description": "Run http over udp with node.js",
+  "version": "0.0.1",
+  "main": "./httpp",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/InstantWebP2P/node-httpp.git"
+  },
+  "dependencies": {
+    "bindings": "0.3.0"
+  },
+  "engines": {
+    "node": "0.8.x"
+  }
+}
