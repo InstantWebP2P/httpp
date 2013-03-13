@@ -16,6 +16,7 @@ Usage/API:
 
 TODO:
 
+  First release target on Node.js 0.10.0
 
 <br/>
 ### License
