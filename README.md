@@ -1,22 +1,23 @@
 httpp
 =====
 
-Node.js module to bring up P2P Web
+#### Node.js module to bring peer/p2p Web
 
 Not ready - please use binary release in ./bin/ directory or 
             build node-httpp binary from https://github.com/InstantWebP2P/node-httpp.git
 
-Install:
+### Install
 
   npm install httpp
   
 
-Usage/API:
+### Usage/API
 
 
-TODO:
+### TODO
 
-  First release target on Node.js 0.10.0
+* First release target on Node.js 0.10.0
+* Improve documents, RFC draft
 
 <br/>
 ### License
