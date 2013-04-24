@@ -275,7 +275,7 @@ public:
 private: // Identification
    UDTSOCKET m_SocketID;                        // UDT socket number
    UDTSockType m_iSockType;                     // Type of the UDT connection (SOCK_STREAM or SOCK_DGRAM)
-   UDTSOCKET m_PeerID;				// peer id, for multiplexer
+   UDTSOCKET m_PeerID;				            // peer id, for multiplexer
    static const int m_iVersion;                 // UDT version, for compatibility use
 
 private: // Packet sizes
@@ -296,8 +296,8 @@ private: // Options
    bool m_bRendezvous;                          // Rendezvous connection mode
    int m_iSndTimeOut;                           // sending timeout in milliseconds
    int m_iRcvTimeOut;                           // receiving timeout in milliseconds
-   bool m_bReuseAddr;				// reuse an exiting port or not, for UDP multiplexer
-   int64_t m_llMaxBW;				// maximum data transfer rate (threshold)
+   bool m_bReuseAddr;				            // reuse an exiting port or not, for UDP multiplexer
+   int64_t m_llMaxBW;				            // maximum data transfer rate (threshold)
 
 private: // congestion control
    CCCVirtualFactory* m_pCCFactory;             // Factory class to create a specific CC instance

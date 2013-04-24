@@ -6,7 +6,7 @@
   "main": "./httpp",
   "repository": {
     "type": "git",
-    "url": "git://github.com/InstantWebP2P/node-httpp.git"
+    "url": "git://github.com/InstantWebP2P/httpp.git"
   },
   "dependencies": {
     "bindings": "0.3.0"
