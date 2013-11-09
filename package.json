@@ -1,5 +1,5 @@
 {
-  "author": "Tom Zhou",
+  "author": "Tom Zhou(iwebpp@gmail.com)",
   "name": "httpp",
   "description": "Run http over udp with node.js",
   "version": "0.0.1",
