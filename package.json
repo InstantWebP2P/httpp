@@ -1,8 +1,8 @@
 {
-  "author": "Tom Zhou(iwebpp@gmail.com)",
+  "author": "Tom Zhou(appnet.link@gmail.com)",
   "name": "httpp",
   "description": "Run http over udp with node.js",
-  "version": "0.0.1",
+  "version": "0.8.1",
   "main": "./httpp",
   "repository": {
     "type": "git",
