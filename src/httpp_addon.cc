@@ -24,29 +24,55 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
+#include <nan.h>
+
+#include "uv.h"
 #include "udtreq_wrap.h"
+#include "uvudt.h"
+#include <iostream>
+
+#define container_of(ptr, type, member) \
+    ((type *)((char *)(ptr)-offsetof(type, member)))
 
 using namespace v8;
+using namespace std;
 
 namespace httpp {
 
+class Environment;
+
 ngx_queue_t req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
 
-static Handle<Value> GetActiveRequests(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope;
+void GetActiveRequests(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    Isolate *isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Array> ary = Array::New();
-  ngx_queue_t* q = NULL;
-  int i = 0;
 
-  ngx_queue_foreach(q, &req_wrap_queue) {
-    ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
-    if (w->object_.IsEmpty()) continue;
-    ary->Set(i++, w->object_);
-  }
+    Local<Array> ary = Array::New(isolate);
+    ngx_queue_t *q = NULL;
+    uint32_t i = 0;
 
-  return scope.Close(ary);
+    ngx_queue_foreach(q, &req_wrap_queue)
+    {
+        UDTReqWrap<uvudt_req_t> *w = container_of(q, UDTReqWrap<uvudt_req_t>, req_wrap_queue_);
+        if (w->handle().IsEmpty())
+            continue;
+        ary->Set(context, i++, w->handle());
+    }
+    
+    args.GetReturnValue().Set(ary);
 }
 
-}  // namespace node
+NAN_MODULE_INIT(InitAll)
+{
+    std::cout << "enter httpp addon ..." << std::endl;
+
+    ///Environment *env = Environment::GetCurrent(context);
+
+    ///MyObject::Init(exports);
+    //NAN_EXPORT(target, Foo);
+}
+
+}  // namespace httpp
+
+NAN_MODULE_INIT(httpp::InitAll);

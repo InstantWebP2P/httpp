@@ -19,12 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
-#include "node_buffer.h"
+#include <nan.h>
+
 #include "udthandle_wrap.h"
-#include "slab_allocator.h"
 #include "udtstream_wrap.h"
-#include "udt_wrap.h"
 #include "udtreq_wrap.h"
 
 #include <stdlib.h> // abort()
@@ -35,22 +33,19 @@
 
 namespace httpp {
 
-using v8::Object;
-using v8::Handle;
-using v8::Local;
-using v8::Persistent;
-using v8::Value;
-using v8::HandleScope;
-using v8::FunctionTemplate;
-using v8::String;
-using v8::Function;
-using v8::TryCatch;
 using v8::Context;
-using v8::Arguments;
-using v8::Integer;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
+using v8::Local;
+using v8::NewStringType;
 using v8::Number;
-using v8::Exception;
-
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::Value;
+using v8::Buffer;
 
 typedef class UDTReqWrap<uvudt_shutdown_t> UDTShutdownWrap;
 
@@ -69,43 +64,28 @@ class UDTWriteWrap: public UDTReqWrap<uvudt_write_t> {
   void operator delete(void* ptr) { assert(0); };
 };
 
-
-static Persistent<String> buffer_sym;
-static Persistent<String> bytes_sym;
-static Persistent<String> write_queue_size_sym;
-static Persistent<String> onread_sym;
-static Persistent<String> oncomplete_sym;
-static SlabAllocator* slab_allocator;
 static bool initialized;
 
-
-static void DeleteSlabAllocator(void*) {
-  delete slab_allocator;
-  slab_allocator = NULL;
-}
-
-
-void UDTStreamWrap::Initialize(Handle<Object> target) {
+void UDTStreamWrap::Initialize(Local<Object> target) {
   if (initialized) return;
   initialized = true;
 
-  slab_allocator = new SlabAllocator(SLAB_SIZE);
-  AtExit(DeleteSlabAllocator, NULL);
+  ///slab_allocator = new SlabAllocator(SLAB_SIZE);
+  ///AtExit(DeleteSlabAllocator, NULL);
 
-  HandleScope scope;
+  UDTHandleWrap::Initialize(target);
 
-  HandleWrap::Initialize(target);
-
+/*
   buffer_sym = NODE_PSYMBOL("buffer");
   bytes_sym = NODE_PSYMBOL("bytes");
   write_queue_size_sym = NODE_PSYMBOL("writeQueueSize");
   onread_sym = NODE_PSYMBOL("onread");
-  oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  oncomplete_sym = NODE_PSYMBOL("oncomplete");*/
 }
 
 
-UDTStreamWrap::UDTStreamWrap(Handle<Object> object, uv_stream_t* stream)
-    : HandleWrap(object, (uv_handle_t*)stream) {
+UDTStreamWrap::UDTStreamWrap(Local<Object> object, uvudt_t* stream)
+    : UDTHandleWrap(object, (uv_handle_t*)stream) {
   stream_ = stream;
   if (stream) {
     stream->data = this;
@@ -114,138 +94,96 @@ UDTStreamWrap::UDTStreamWrap(Handle<Object> object, uv_stream_t* stream)
 
 
 void UDTStreamWrap::SetHandle(uv_handle_t* h) {
-  HandleWrap::SetHandle(h);
-  stream_ = (uv_stream_t*)h;
+  UDTHandleWrap::SetHandle(h);
+  stream_ = (uvudt_t*)h;
   stream_->data = this;
 }
 
 
 void UDTStreamWrap::UpdateWriteQueueSize() {
-  HandleScope scope;
+  ///HandleScope scope;
   object_->Set(write_queue_size_sym, Integer::New(stream_->write_queue_size));
 }
 
 
-Handle<Value> UDTStreamWrap::ReadStart(const Arguments& args) {
-  HandleScope scope;
+void UDTStreamWrap::ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ///HandleScope scope;
 
-  UNWRAP(UDTStreamWrap)
+  UDTStreamWrap *wrap = ObjectWrap::Unwrap<UDTStreamWrap>(args.Holder());
 
-  bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  ((uv_pipe_t*)wrap->stream_)->ipc;
-  int r;
-  if (ipc_pipe) {
-    r = uv_read2_start(wrap->stream_, OnAlloc, OnRead2);
-  } else {
-    r = uv_read_start(wrap->stream_, OnAlloc, OnRead);
-  }
+  r = uv_read_start(wrap->stream_, OnAlloc, OnRead);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  ///if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  ///return scope.Close(Integer::New(r));
 }
 
 
-Handle<Value> UDTStreamWrap::ReadStop(const Arguments& args) {
-  HandleScope scope;
+void UDTStreamWrap::ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ///HandleScope scope;
 
-  UNWRAP(UDTStreamWrap)
+  UDTStreamWrap *wrap = ObjectWrap::Unwrap<UDTStreamWrap>(args.Holder());
 
   int r = uv_read_stop(wrap->stream_);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()));
+  ///if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  ///return scope.Close(Integer::New(r));
 }
 
 
-uv_buf_t UDTStreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
+void UDTStreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* obuf) {
   UDTStreamWrap* wrap = static_cast<UDTStreamWrap*>(handle->data);
-  assert(wrap->stream_ == reinterpret_cast<uv_stream_t*>(handle));
-  char* buf = slab_allocator->Allocate(wrap->object_, suggested_size);
-  return uv_buf_init(buf, suggested_size);
+  assert(wrap->stream_ == reinterpret_cast<uvudt_t*>(handle));
+  char* buf = malloc(suggested_size);
+  
+  *obuf = uv_buf_init(buf, suggested_size);
 }
 
+void UDTStreamWrap::OnRead(uvudt_t *handle, ssize_t nread, uv_buf_t *buf)
+{
+    ///HandleScope scope;
 
-void UDTStreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
-    uv_buf_t buf, uv_handle_type pending) {
-  HandleScope scope;
+    UDTStreamWrap *wrap = static_cast<UDTStreamWrap *>(handle->data);
 
-  UDTStreamWrap* wrap = static_cast<UDTStreamWrap*>(handle->data);
+    // We should not be getting this callback if someone as already called
+    // uv_close() on the handle.
+    assert(wrap->persistent().IsEmpty() == false);
 
-  // We should not be getting this callback if someone as already called
-  // uv_close() on the handle.
-  assert(wrap->object_.IsEmpty() == false);
+    if (nread < 0)
+    {
+        // If libuv reports an error or EOF it *may* give us a buffer back. In that
+        // case, return the space to the slab.
+        if (buf->base != NULL)
+        {
+            free(buf->base);
+            buf->base = NULL;
+        }
 
-  if (nread < 0)  {
-    // If libuv reports an error or EOF it *may* give us a buffer back. In that
-    // case, return the space to the slab.
-    if (buf.base != NULL) {
-      slab_allocator->Shrink(wrap->object_, buf.base, 0);
+        ///SetErrno(uv_last_error(uv_default_loop()));
+        ///MakeCallback(wrap->persistent(), onread_sym, 0, NULL);
+        return;
     }
 
-    SetErrno(uv_last_error(uv_default_loop()));
-    MakeCallback(wrap->object_, onread_sym, 0, NULL);
-    return;
-  }
+    assert(buf->base != NULL);
 
-  assert(buf.base != NULL);
-  Local<Object> slab = slab_allocator->Shrink(wrap->object_,
-                                              buf.base,
-                                              nread);
+    if (nread == 0)
+        return;
+    assert(static_cast<size_t>(nread) <= buf->len);
 
-  if (nread == 0) return;
-  assert(static_cast<size_t>(nread) <= buf.len);
+    int argc = 2;
+    Local<Value> argv[2] = {Integer::NewFromUnsigned(nread), Nan::NewBuffer(buf->base, buf->len)};
 
-  int argc = 3;
-  Local<Value> argv[4] = {
-    slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
-    Integer::NewFromUnsigned(nread)
-  };
-
-  Local<Object> pending_obj;
-  if (pending == UV_TCP) {
-    pending_obj = TCPWrap::Instantiate();
-  } else if (pending == UV_UDT) {
-    pending_obj = UDTWrap::Instantiate();
-  } else if (pending == UV_NAMED_PIPE) {
-    pending_obj = PipeWrap::Instantiate();
-  } else {
-    // We only support sending UV_TCP, UV_UDT and UV_NAMED_PIPE right now.
-    assert(pending == UV_UNKNOWN_HANDLE);
-  }
-
-  if (!pending_obj.IsEmpty()) {
-    assert(pending_obj->InternalFieldCount() > 0);
-    UDTStreamWrap* pending_wrap =
-      static_cast<UDTStreamWrap*>(pending_obj->GetPointerFromInternalField(0));
-    if (uv_accept(handle, pending_wrap->GetStream())) abort();
-    argv[3] = pending_obj;
-    argc++;
-  }
-
-  MakeCallback(wrap->object_, onread_sym, argc, argv);
+    ///MakeCallback(wrap->persistent(), onread_sym, argc, argv);
 }
 
 
-void UDTStreamWrap::OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-  OnReadCommon(handle, nread, buf, UV_UNKNOWN_HANDLE);
-}
+void UDTStreamWrap::WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ///HandleScope scope;
 
-
-void UDTStreamWrap::OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
-    uv_handle_type pending) {
-  OnReadCommon((uv_stream_t*)handle, nread, buf, pending);
-}
-
-
-Handle<Value> UDTStreamWrap::WriteBuffer(const Arguments& args) {
-  HandleScope scope;
-
-  UNWRAP(UDTStreamWrap)
+  UDTStreamWrap *wrap = ObjectWrap::Unwrap<UDTStreamWrap>(args.Holder());
 
   // The first argument is a buffer.
   assert(args.Length() >= 1 && Buffer::HasInstance(args[0]));
@@ -263,7 +201,7 @@ Handle<Value> UDTStreamWrap::WriteBuffer(const Arguments& args) {
   char* storage = new char[sizeof(UDTWriteWrap)];
   UDTWriteWrap* req_wrap = new (storage) UDTWriteWrap();
 
-  req_wrap->object_->SetHiddenValue(buffer_sym, buffer_obj);
+  req_wrap->persistent()->SetHiddenValue(buffer_sym, buffer_obj);
 
   uv_buf_t buf;
   buf.base = Buffer::Data(buffer_obj) + offset;
@@ -276,7 +214,7 @@ Handle<Value> UDTStreamWrap::WriteBuffer(const Arguments& args) {
                    UDTStreamWrap::AfterWrite);
 
   req_wrap->Dispatched();
-  req_wrap->object_->Set(bytes_sym, Number::New((uint32_t) length));
+  req_wrap->persistent()->Set(bytes_sym, Number::New((uint32_t) length));
 
   wrap->UpdateWriteQueueSize();
 
@@ -286,17 +224,17 @@ Handle<Value> UDTStreamWrap::WriteBuffer(const Arguments& args) {
     delete[] storage;
     return scope.Close(v8::Null());
   } else {
-    return scope.Close(req_wrap->object_);
+    return scope.Close(req_wrap->persistent());
   }
 }
 
 
 template <WriteEncoding encoding>
-Handle<Value> UDTStreamWrap::WriteStringImpl(const Arguments& args) {
+void UDTStreamWrap::WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope;
   int r;
 
-  UNWRAP(UDTStreamWrap)
+  UDTStreamWrap *wrap = ObjectWrap::Unwrap<UDTStreamWrap>(args.Holder());
 
   if (args.Length() < 1)
     return ThrowTypeError("Not enough arguments");
@@ -389,7 +327,7 @@ Handle<Value> UDTStreamWrap::WriteStringImpl(const Arguments& args) {
                  UDTStreamWrap::AfterWrite);
 
   } else {
-    uv_stream_t* send_stream = NULL;
+    uvudt_t* send_stream = NULL;
 
     if (args[1]->IsObject()) {
       Local<Object> send_stream_obj = args[1]->ToObject();
@@ -408,7 +346,7 @@ Handle<Value> UDTStreamWrap::WriteStringImpl(const Arguments& args) {
   }
 
   req_wrap->Dispatched();
-  req_wrap->object_->Set(bytes_sym, Number::New((uint32_t) data_size));
+  req_wrap->persistent()->Set(bytes_sym, Number::New((uint32_t) data_size));
 
   wrap->UpdateWriteQueueSize();
 
@@ -418,22 +356,22 @@ Handle<Value> UDTStreamWrap::WriteStringImpl(const Arguments& args) {
     delete[] storage;
     return scope.Close(v8::Null());
   } else {
-    return scope.Close(req_wrap->object_);
+    return scope.Close(req_wrap->persistent());
   }
 }
 
 
-Handle<Value> UDTStreamWrap::WriteAsciiString(const Arguments& args) {
+void UDTStreamWrap::WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return WriteStringImpl<kAscii>(args);
 }
 
 
-Handle<Value> UDTStreamWrap::WriteUtf8String(const Arguments& args) {
+void UDTStreamWrap::WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return WriteStringImpl<kUtf8>(args);
 }
 
 
-Handle<Value> UDTStreamWrap::WriteUcs2String(const Arguments& args) {
+void UDTStreamWrap::WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return WriteStringImpl<kUcs2>(args);
 }
 
@@ -445,8 +383,8 @@ void UDTStreamWrap::AfterWrite(uvudt_write_t* req, int status) {
   HandleScope scope;
 
   // The wrap and request objects should still be there.
-  assert(req_wrap->object_.IsEmpty() == false);
-  assert(wrap->object_.IsEmpty() == false);
+  assert(req_wrap->persistent().IsEmpty() == false);
+  assert(wrap->persistent().IsEmpty() == false);
 
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
@@ -456,21 +394,21 @@ void UDTStreamWrap::AfterWrite(uvudt_write_t* req, int status) {
 
   Local<Value> argv[] = {
     Integer::New(status),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Local<Value>::New(wrap->persistent()),
+    Local<Value>::New(req_wrap->persistent())
   };
 
-  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(req_wrap->persistent(), oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   req_wrap->~UDTWriteWrap();
   delete[] reinterpret_cast<char*>(req_wrap);
 }
 
 
-Handle<Value> UDTStreamWrap::Shutdown(const Arguments& args) {
+void UDTStreamWrap::Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope;
 
-  UNWRAP(UDTStreamWrap)
+  UDTStreamWrap *wrap = ObjectWrap::Unwrap<UDTStreamWrap>(args.Holder());
 
   UDTShutdownWrap* req_wrap = new UDTShutdownWrap();
 
@@ -483,7 +421,7 @@ Handle<Value> UDTStreamWrap::Shutdown(const Arguments& args) {
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
-    return scope.Close(req_wrap->object_);
+    return scope.Close(req_wrap->persistent());
   }
 }
 
@@ -493,8 +431,8 @@ void UDTStreamWrap::AfterShutdown(uvudt_shutdown_t* req, int status) {
   UDTStreamWrap* wrap = (UDTStreamWrap*) req->handle->data;
 
   // The wrap and request objects should still be there.
-  assert(req_wrap->object_.IsEmpty() == false);
-  assert(wrap->object_.IsEmpty() == false);
+  assert(req_wrap->persistent().IsEmpty() == false);
+  assert(wrap->persistent().IsEmpty() == false);
 
   HandleScope scope;
 
@@ -504,11 +442,11 @@ void UDTStreamWrap::AfterShutdown(uvudt_shutdown_t* req, int status) {
 
   Local<Value> argv[3] = {
     Integer::New(status),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Local<Value>::New(wrap->persistent()),
+    Local<Value>::New(req_wrap->persistent())
   };
 
-  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
+  MakeCallback(req_wrap->persistent(), oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }

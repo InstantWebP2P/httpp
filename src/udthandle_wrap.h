@@ -22,29 +22,14 @@
 #ifndef UDTHANDLE_WRAP_H_
 #define UDTHANDLE_WRAP_H_
 
-#include "v8.h"
+#include <nan.h>
 
 #include "ngx-queue.h"
 #include "uv.h"
 #include "uvudt.h"
-#include "node.h"
 
-#define UNWRAP(type)                                                           \
-  assert(!args.Holder().IsEmpty());                                            \
-  assert(args.Holder()->InternalFieldCount() > 0);                             \
-  type* wrap =                                                                 \
-      static_cast<type*>(args.Holder()->GetAlignedPointerFromInternalField(0));\
-  if (!wrap) {                                                                 \
-    fprintf(stderr,                                                            \
-            #type ": Aborting due to unwrap failure at %s:%d\n",               \
-            __FILE__,                                                          \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
 
 namespace httpp {
-
-class Environment;
 
 // Rules:
 //
@@ -66,38 +51,36 @@ class Environment;
 //   js/c++ boundary crossing. At the javascript layer that should all be
 //   taken care of.
 
-class UDTHandleWrap {
-  public:
-   static void Initialize(v8::Handle<v8::Object> target);
+class UDTHandleWrap : public Nan::ObjectWrap
+{
+public:
+    static void Initialize(v8::Local<v8::Object> target);
 
-   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
-   static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
+    static void Close(const Nan::FunctionCallbackInfo<v8::Value> &args);
+    static void Ref(const Nan::FunctionCallbackInfo<v8::Value> &args);
+    static void Unref(const Nan::FunctionCallbackInfo<v8::Value> &args);
+    static void HasRef(const Nan::FunctionCallbackInfo<v8::Value> &args);
 
-   inline uv_handle_t* GetHandle() const { return handle_; }
-   static inline bool IsAlive(UDTHandleWrap* wrap) { return wrap && wrap->handle_; }
+    inline uv_handle_t *GetHandle() const { return handle_; }
+    static inline bool IsAlive(UDTHandleWrap *wrap) { return wrap && wrap->handle_; }
 
-  protected:
-   UDTHandleWrap(Environment* env,
-                 v8::Handle<v8::Object> object,
-                 uv_handle_t* handle);
-   virtual ~UDTHandleWrap();
+    inline void Ref() { Nan::ObjectWrap::Ref();}
+    inline void Unref() { Nan::ObjectWrap::Unref(); }
+    inline void MakeWeak() { Nan::ObjectWrap::MakeWeak(); }
 
-   virtual void SetHandle(uv_handle_t* h);
+protected:
+    UDTHandleWrap(v8::Local<v8::Object> object,
+                  uv_handle_t *handle);
+    virtual ~UDTHandleWrap();
 
-   v8::Persistent<v8::Object> object_;
+    virtual void SetHandle(uv_handle_t *h);
 
-  private:
-   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
-   static void OnClose(uv_handle_t* handle);
-   ngx_queue_t handle_wrap_queue_;
-   uv_handle_t* handle_;
-   bool unref_;
-   Environment* envp;
-   };
+private:
+    static void OnClose(uv_handle_t *handle);
+    uv_handle_t *handle_;
+};
 
-}  // namespace node
+}  // namespace httpp
 
 
 #endif  // UDTHANDLE_WRAP_H_

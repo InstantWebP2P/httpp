@@ -60,7 +60,7 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::Null;
-using v8::Persistent;
+using Nan::Persistent;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -920,6 +920,6 @@ static Local<Object> AddressToJS(const sockaddr* addr, const int fd, const int u
 }
 
 
-}  // namespace node
+}  // namespace httpp
 
-NODE_MODULE(node_udt_wrap, node::UDTWrap::Initialize)
+///NODE_MODULE(httpp_udt_wrap, node::UDTWrap::Initialize)

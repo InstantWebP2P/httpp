@@ -95,7 +95,7 @@ class UDTWrap : public UDTStreamWrap {
 };
 
 
-}  // namespace node
+}  // namespace httpp
 
 
 #endif  // UDT_WRAP_H_

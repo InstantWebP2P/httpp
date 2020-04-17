@@ -22,44 +22,49 @@
 #ifndef UDTSTREAM_WRAP_H_
 #define UDTSTREAM_WRAP_H_
 
-#include "v8.h"
-#include "node.h"
-#include "handle_wrap.h"
+#include <nan.h>
+
+#include "udthandle_wrap.h"
 
 namespace httpp {
 
-
-enum WriteEncoding {
-  kAscii,
-  kUtf8,
-  kUcs2
-};
-
+using v8::Context;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
+using v8::Local;
+using v8::NewStringType;
+using v8::Number;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::Value;
 
 class UDTStreamWrap : public UDTHandleWrap {
  public:
   uvudt_t* GetStream() { return stream_; }
 
-  static void Initialize(v8::Handle<v8::Object> target);
+  static void Initialize(v8::Local<v8::Object> target);
 
   // JavaScript functions
-  static v8::Handle<v8::Value> ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Handle<v8::Value> ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Handle<v8::Value> Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadStart(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Handle<v8::Value> WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Handle<v8::Value> WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Handle<v8::Value> WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Handle<v8::Value> WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteAsciiString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteUcs2String(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  protected:
-  UDTStreamWrap(v8::Handle<v8::Object> object, uvudt_t* stream);
+  UDTStreamWrap(v8::Local<v8::Object> object, uvudt_t* stream);
   virtual void SetHandle(uvudt_t* h);
   void StateChange() { }
   void UpdateWriteQueueSize();
 
  private:
-  static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
+  static inline char* NewSlab(v8::Local<v8::Object> global, v8::Local<v8::Object> wrap_obj);
 
   // Callbacks for libuv
   static void AfterWrite(uvudt_write_t* req, int status);
@@ -67,17 +72,15 @@ class UDTStreamWrap : public UDTHandleWrap {
   static void AfterShutdown(uvudt_shutdown_t* req, int status);
 
   static void OnRead(uvudt_t* handle, ssize_t nread, uv_buf_t* buf);
-  static void OnReadCommon(uvudt_t* handle, ssize_t nread, uv_buf_t* buf, uv_handle_type pending);
 
-  template <enum WriteEncoding encoding>
-  static v8::Handle<v8::Value> WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value>& args);
+  template <enum Nan::Encoding encoding>
+  static void WriteStringImpl(const v8::FunctionCallbackInfo<v8::Value> &args);
 
-  size_t slab_offset_;
   uvudt_t* stream_;
 };
 
 
-}  // namespace node
+}  // namespace httpp
 
 
 #endif  // UDTSTREAM_WRAP_H_

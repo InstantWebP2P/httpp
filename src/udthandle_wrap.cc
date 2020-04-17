@@ -19,7 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
+#include <nan.h>
+
 #include "ngx-queue.h"
 #include "udthandle_wrap.h"
 
@@ -31,73 +32,60 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
-using v8::Persistent;
+using Nan::Persistent;
 using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
-// defined in node.cc
-extern ngx_queue_t handle_wrap_queue;
 
-void UDTHandleWrap::Initialize(Handle<Object> target) {
+void UDTHandleWrap::Initialize(Local<Object> target) {
   /* Doesn't do anything at the moment. */
 }
 
-void UDTHandleWrap::Ref(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
+void UDTHandleWrap::Ref(const Nan::FunctionCallbackInfo<v8::Value>& args) {
+    UDTHandleWrap *wrap = ObjectWrap::Unwrap<UDTHandleWrap>(args.Holder());
 
-  UDTHandleWrap* wrap;
-  UNWRAP(UDTHandleWrap)
+    wrap->Ref();
 
-  if (IsAlive(wrap)) uv_ref(wrap->GetHandle());
+    if (IsAlive(wrap))
+        uv_ref(wrap->GetHandle());
 }
 
-void UDTHandleWrap::Unref(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
+void UDTHandleWrap::Unref(const Nan::FunctionCallbackInfo<v8::Value>& args) {
+    UDTHandleWrap *wrap = ObjectWrap::Unwrap<UDTHandleWrap>(args.Holder());
 
-  UDTHandleWrap* wrap;
-  UNWRAP(UDTHandleWrap)
+    wrap->Unref();
 
-  if (IsAlive(wrap)) uv_unref(wrap->GetHandle());
+    if (IsAlive(wrap))
+        uv_unref(wrap->GetHandle());
 }
 
 
-void UDTHandleWrap::Close(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
+void UDTHandleWrap::Close(const Nan::FunctionCallbackInfo<v8::Value>& args) {
+    UDTHandleWrap *wrap = ObjectWrap::Unwrap<UDTHandleWrap>(args.Holder());
 
-  UDTHandleWrap* wrap = static_cast<UDTHandleWrap*>(
-      args.Holder()->GetAlignedPointerFromInternalField(0));
-
-  // guard against uninitialized handle or double close
-  if (wrap && wrap->handle_) {
-    assert(!wrap->object_.IsEmpty());
-    uvudt_close((uvudt_t *)wrap->handle_, OnClose);
-    wrap->handle_ = NULL;
-  }
+    // guard against uninitialized handle or double close
+    if (IsAlive(wrap))
+    {
+        uvudt_close((uvudt_t *)wrap->handle_, OnClose);
+        wrap->handle_ = NULL;
+    }
 }
 
-UDTHandleWrap::UDTHandleWrap(Environment* env, Handle<Object> object,
-                             uv_handle_t* h) {
-  unref_ = false;
-  handle_ = h;
-  if (h) {
-    h->data = this;
-  }
-  this->envp = env;
+UDTHandleWrap::UDTHandleWrap(v8::Local<v8::Object> object,
+                             uv_handle_t* h)
+{
+    Wrap(object);
 
-  HandleScope scope(env->isolate());
-
-  assert(object_.IsEmpty());
-  assert(object->InternalFieldCount() > 0);
-  object_ = v8::Persistent<v8::Object>::New(scope, object);
-  object_->SetPointerInInternalField(0, this);
-  ngx_queue_insert_tail(&handle_wrap_queue, &handle_wrap_queue_);
+    handle_ = h;
+    if (h)
+    {
+        h->data = this;
+    }
 }
 
 void UDTHandleWrap::SetHandle(uv_handle_t* h) {
@@ -105,10 +93,8 @@ void UDTHandleWrap::SetHandle(uv_handle_t* h) {
   h->data = this;
 }
 
-
 UDTHandleWrap::~UDTHandleWrap() {
-  assert(object_.IsEmpty());
-  ngx_queue_remove(&handle_wrap_queue_);
+
 }
 
 
@@ -116,17 +102,12 @@ void UDTHandleWrap::OnClose(uv_handle_t* handle) {
   UDTHandleWrap* wrap = static_cast<UDTHandleWrap*>(handle->data);
 
   // The wrap object should still be there.
-  assert(wrap->object_.IsEmpty() == false);
+  assert(!wrap->persistent().IsEmpty());
 
   // But the handle pointer should be gone.
   assert(wrap->handle_ == NULL);
 
-  wrap->object_->SetPointerInInternalField(0, NULL);
-  wrap->object_.Dispose();
-  wrap->object_.Clear();
-
   delete wrap;
 }
 
-
-}  // namespace node
+}  // namespace httpp

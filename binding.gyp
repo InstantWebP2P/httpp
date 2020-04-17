@@ -3,17 +3,15 @@
     {
       'target_name': 'httpp',
       'include_dirs': [
+        "<!(node -e \"require('nan')\")",
         'src/',
         'uvudt/',
         'uvudt/UDT4/src/'
       ],
       'sources': [
-        'src/httpp.cc',
-        'src/udt_wrap.cc',
-        'src/udtstream_wrap.cc',
+        'src/httpp_addon.cc',
         'src/udthandle_wrap.cc',
-        'uvudt/uvudt.c',
-        'uvudt/udtstream.c'
+        'src/udtstream_wrap.cc',
         'uvudt/UDT4/src/api.cpp',
         'uvudt/UDT4/src/buffer.cpp',
         'uvudt/UDT4/src/cache.cpp',
@@ -30,49 +28,32 @@
         'uvudt/UDT4/src/window.cpp'
       ],
       'conditions': [
-        ['OS=="win"',
-          {
+        ['OS=="win"', {
             'defines': [
               'UDT_EXPORTS'
-            ],
-            'link_settings': {
-              'libraries': [
-                '-lws2_32.lib',
-                '-lpsapi.lib',
-                '-liphlpapi.lib',
-                '-lwsock32.lib'
-              ]
-            }
-          }
-        ],
-        ['OS!="win"',
-          {
-             'cflags_cc': [
-              '-pedantic',
-              '-Wall',
-              '-Wextra',
-              '-Wno-unused-parameter'
-              '-finline-functions',
-              '-fno-strict-aliasing',
-              '-fvisibility=hidden'
-            ],
-            'libraries': [
-              '-lm',
-              '-lstdc++',
-              '-lpthread'
             ]
           }
         ],
-        ['OS=="linux"', 
-          {
-              'cflags_cc': [ '-DLINUX=1' ]
+        ['OS=="linux"', {
+            'defines': [
+                'LINUX=1'
+            ]
           }
         ],
-        ['OS in "mac ios"',
-          {
-              'cflags_cc': [ '-DDARWIN=1' ]
+        ['OS in "linux freebsd openbsd solaris android aix cloudabi"', {
+            'cflags_cc': [
+                '-fexceptions'
+            ]
           }
-        ]
+        ],
+        ['OS in "mac ios"', {
+            'defines': [
+                'DARWIN=1'
+            ],
+            'xcode_settings': {
+                'GCC_ENABLE_CPP_EXCEPTIONS': 'YES'              # -fexceptions
+            }
+        }]
       ]
     }
   ]
