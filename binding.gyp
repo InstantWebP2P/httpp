@@ -5,7 +5,7 @@
       'include_dirs': [
         'src/',
         'uvudt/',
-        'uvudt/UDT4/src/',
+        'uvudt/UDT4/src/'
       ],
       'sources': [
         'src/httpp.cc',
@@ -27,13 +27,13 @@
         'uvudt/UDT4/src/packet.cpp',
         'uvudt/UDT4/src/queue.cpp',
         'uvudt/UDT4/src/udtc.cpp',
-        'uvudt/UDT4/src/window.cpp',
+        'uvudt/UDT4/src/window.cpp'
       ],
       'conditions': [
         ['OS=="win"',
           {
             'defines': [
-              'UDT_EXPORTS',
+              'UDT_EXPORTS'
             ],
             'link_settings': {
               'libraries': [
@@ -41,9 +41,9 @@
                 '-lpsapi.lib',
                 '-liphlpapi.lib',
                 '-lwsock32.lib'
-              ],
-            },
-          },
+              ]
+            }
+          }
         ],
         ['OS!="win"',
           {
@@ -54,26 +54,26 @@
               '-Wno-unused-parameter'
               '-finline-functions',
               '-fno-strict-aliasing',
-              '-fvisibility=hidden',
+              '-fvisibility=hidden'
             ],
             'libraries': [
               '-lm',
               '-lstdc++',
-              '-lpthread',
-            ],
-          },
+              '-lpthread'
+            ]
+          }
         ],
         ['OS=="linux"', 
           {
-              'cflags_cc': [ '-DLINUX=1' ],
-          },
+              'cflags_cc': [ '-DLINUX=1' ]
+          }
         ],
         ['OS in "mac ios"',
           {
-              'cflags_cc': [ '-DDARWIN=1' ],
-          },
-        ],
-      ],
-    },
-  ],
+              'cflags_cc': [ '-DDARWIN=1' ]
+          }
+        ]
+      ]
+    }
+  ]
 }

@@ -1,17 +1,36 @@
 {
-  "author": "Tom Zhou(appnet.link@gmail.com)",
-  "name": "httpp",
-  "description": "Run http over udp with node.js",
-  "version": "12.0.0",
-  "main": "./index.js",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/InstantWebP2P/httpp.git"
-  },
-  "dependencies": {
-    "bindings": "0.3.0"
-  },
-  "engines": {
-    "node": ">12.0.0"
-  }
+    "name": "httpp",
+    "version": "1.0.0",
+    "description": "Run http over udp with node.js",
+    "main": "index.js",
+    "scripts": {
+        "install": "node-gyp-build",
+        "prebuild": "prebuildify --napi",
+        "test": "mocha"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/InstantWebP2P/httpp.git"
+    },
+    "keywords": [
+        "httpp",
+        "p2p",
+        "udt"
+    ],
+    "author": "Tom Zhou <appnet.link@gmail.com> (http://appnet.link)",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/InstantWebP2P/httpp/issues"
+    },
+    "homepage": "https://github.com/InstantWebP2P/httpp",
+    "dependencies": {
+        "node-gyp-build": "~4.2.1"
+    },
+    "devDependencies": {
+        "mocha": "~7.1.0",
+        "prebuildify": "~3.0.0"
+    },
+    "engines": {
+        "node": ">= 6.0.0"
+    }
 }
